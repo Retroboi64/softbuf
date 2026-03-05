@@ -8,7 +8,7 @@ authors = ["Patrick Reese (Retroboi64) <https://github.com/Retroboi64>"]
 copyright = "Copyright (c) 2025 Patrick Reese (Retroboi64)"
 
 [dependencies]
-numix = { git = "https://github.com/Retroboi64/numix" version = "0.1.0" }
+numix = { git = "https://github.com/Retroboi64/numix", version = "0.1.0" }
 raw-window-handle = "0.6"
 
 [target.'cfg(target_os = "linux")'.dependencies]

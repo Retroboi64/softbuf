@@ -6,6 +6,7 @@ description = "A software framebuffer library with drawing primitives and platfo
 license = "MIT"
 authors = ["Patrick Reese (Retroboi64) <https://github.com/Retroboi64>"]
 copyright = "Copyright (c) 2025 Patrick Reese (Retroboi64)"
+repository = "https://github.com/Retroboi64/windowed"
 
 [dependencies]
 numix = { git = "https://github.com/Retroboi64/numix", version = "0.1.0" }

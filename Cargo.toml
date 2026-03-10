@@ -9,7 +9,8 @@ copyright = "Copyright (c) 2025 Patrick Reese (Retroboi64)"
 repository = "https://github.com/Retroboi64/windowed"
 
 [dependencies]
-numix = { git = "https://github.com/Retroboi64/numix", version = "0.1.0" }
+windowed = "0.2.0"
+numix = "0.1.1"
 raw-window-handle = "0.6"
 
 [target.'cfg(target_os = "linux")'.dependencies]
@@ -22,11 +23,3 @@ winapi = { version = "0.3", features = [
     "windef",
     "minwindef",
 ] }
-
-[[example]]
-name = "shapes"
-path = "examples/shapes.rs"
-
-[[example]]
-name = "animate"
-path = "examples/animate.rs"

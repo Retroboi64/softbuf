@@ -21,7 +21,9 @@ jobs:
 
       - name: Install Linux dependencies
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libx11-dev libx11-xcb-dev
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libx11-dev libx11-xcb-dev libgl1-mesa-dev libxcursor-dev libxi-dev
 
       - name: Cargo check
         run: cargo check --all-targets

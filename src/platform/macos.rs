@@ -17,7 +17,28 @@ type Sel = *mut c_void;
 #[link(name = "objc")]
 unsafe extern "C" {
     fn sel_registerName(name: *const c_char) -> Sel;
-    fn objc_msgSend(recv: Id, sel: Sel, ...) -> Id;
+    fn objc_msgSend();
+}
+
+#[inline(always)]
+unsafe fn msg_send_id(recv: Id, sel: Sel) -> Id {
+    let f: unsafe extern "C" fn(Id, Sel) -> Id =
+        unsafe { std::mem::transmute(objc_msgSend as *const ()) };
+    unsafe { f(recv, sel) }
+}
+
+#[inline(always)]
+unsafe fn msg_send_bool(recv: Id, sel: Sel, arg: i8) {
+    let f: unsafe extern "C" fn(Id, Sel, i8) =
+        unsafe { std::mem::transmute(objc_msgSend as *const ()) };
+    unsafe { f(recv, sel, arg) };
+}
+
+#[inline(always)]
+unsafe fn msg_send_ptr(recv: Id, sel: Sel, arg: *mut c_void) {
+    let f: unsafe extern "C" fn(Id, Sel, *mut c_void) =
+        unsafe { std::mem::transmute(objc_msgSend as *const ()) };
+    unsafe { f(recv, sel, arg) };
 }
 
 #[link(name = "CoreGraphics", kind = "framework")]
@@ -63,7 +84,7 @@ impl PlatformPresenter {
         unsafe {
             // Enable layer backing on the view: [view setWantsLayer:YES]
             let sel_set_wants_layer = sel_registerName(b"setWantsLayer:\0".as_ptr() as *const c_char);
-            objc_msgSend(ns_view, sel_set_wants_layer, 1i8);
+            msg_send_bool(ns_view, sel_set_wants_layer, 1i8);
         }
         Self { ns_view }
     }
@@ -93,7 +114,7 @@ impl PlatformPresenter {
 
         unsafe {
             let sel_layer = sel_registerName(b"layer\0".as_ptr() as *const c_char);
-            let layer: Id = objc_msgSend(self.ns_view, sel_layer);
+            let layer: Id = msg_send_id(self.ns_view, sel_layer);
             if layer.is_null() {
                 return Err(Error::Platform("NSView does not have an active layer".into()));
             }
@@ -122,7 +143,7 @@ impl PlatformPresenter {
 
             if !cg_img.is_null() {
                 let sel_set_contents = sel_registerName(b"setContents:\0".as_ptr() as *const c_char);
-                objc_msgSend(layer, sel_set_contents, cg_img);
+                msg_send_ptr(layer, sel_set_contents, cg_img);
                 CGImageRelease(cg_img);
             }
 

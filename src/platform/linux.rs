@@ -20,9 +20,7 @@ pub struct PlatformPresenter {
 
 impl PlatformPresenter {
     #[cfg(feature = "raw-window-handle")]
-    pub fn new<W: raw_window_handle::HasWindowHandle + raw_window_handle::HasDisplayHandle>(
-        handle: &W,
-    ) -> Result<Self> {
+    pub fn new<W: raw_window_handle::HasWindowHandle>(handle: &W) -> Result<Self> {
         let win = handle
             .window_handle()
             .map_err(|_| Error::InvalidHandle)?;

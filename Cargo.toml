@@ -1,14 +1,14 @@
 [package]
 name = "softbuf"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2024"
-description = "A high-performance software framebuffer library with 2D drawing primitives and cross-platform blitting"
+description = "A high-performance software framebuffer library with 2D drawing primitives, frame pacing, and cross-platform blitting"
 license = "MIT"
 authors = ["Patrick Reese (Retroboi64) <https://github.com/Retroboi64>"]
 repository = "https://github.com/Retroboi64/softbuf"
 
 [dependencies]
-windowed = { version = "0.3.1", path = "../windowed", optional = true, features = ["raw-window-handle"] }
+windowed = { version = "0.4", optional = true, features = ["raw-window-handle"] }
 raw-window-handle = { version = "0.6", optional = true }
 
 [features]
@@ -38,4 +38,9 @@ required-features = ["windowed"]
 [[example]]
 name = "text_and_ui"
 path = "examples/text_and_ui.rs"
+required-features = ["windowed"]
+
+[[example]]
+name = "framerate_pacing"
+path = "examples/framerate_pacing.rs"
 required-features = ["windowed"]

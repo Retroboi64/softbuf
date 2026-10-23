@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-10-22
+
+### Added
+- **Frame Pacing & Framerate Management (`softbuf::pacing`)**:
+  - `FramePacer`: High-precision frame pacer using hybrid OS sleep and spin-yield timing to achieve jitter-free sub-millisecond frame intervals across Windows, macOS, and Linux.
+  - `Framerate`: Target framerate configuration supporting `Framerate::Fps(f64)` (30, 60, 120, 144, 240 FPS), `Framerate::Uncapped`, and dynamic oscillating `Framerate::Ranging` (for testing variable refresh rates and dynamic loads).
+  - `FrameStats`: Accurate real-time timing metrics including delta time (`delta_secs` for framerate-independent physics), instantaneous FPS, exponential moving average FPS, and frame times in milliseconds.
+  - `Framebuffer::draw_fps_overlay`: Performance HUD displaying instantaneous and average FPS and frame time.
+  - `Framebuffer::draw_fps_graph`: Real-time frame time graph and jitter histogram with 60 FPS (16.6ms) and 30 FPS (33.3ms) reference guide lines.
+- **New Example (`examples/framerate_pacing.rs`)**:
+  - Demonstrates particle physics with delta-time integration across 30 FPS, 60 FPS, 120 FPS, 144 FPS, Uncapped, and continuous 20–144 FPS ranging modes.
+
+### Changed
+- **`windowed` 0.4.0 Support**: Upgraded `windowed` dependency to `0.4.0`.
+- **CI Dependency Resolution**: Removed hardcoded local relative path `path = "../windowed"` in `Cargo.toml`, enabling clean automated crates.io package resolution on GitHub Actions and external CI environments.
+
+---
+
 ## [0.2.0] - 2026-10-22
 
 ### Added
@@ -39,12 +57,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`flood_fill`**: Replaced unbounded recursive/4-way queue with an efficient $O(H)$ scanline span-fill algorithm.
 - **`draw_line_aa`**: Fixed Xiaolin Wu anti-aliased line brightness clamping `[0.0, 1.0]` and coordinate boundary safety.
 - **Linux X11 Heap Allocation**: Eliminated per-frame multi-megabyte `Vec<u8>` allocation in favor of a reusable presentation buffer.
-- **Bundled Examples**: Updated `simple.rs`, `animate.rs`, and `shapes.rs` to compile against `windowed 0.3.1` event loop and key event APIs.
-
-### Changed
-- Bumped version to `0.2.0`.
-- Synchronized dependency with `windowed = "0.3.1"`.
-- Removed unused `numix` dependency and fixed unused manifest keys in `Cargo.toml`.
+- **Bundled Examples**: Updated `simple.rs`, `animate.rs`, and `shapes.rs` to compile against `windowed` event loop and key event APIs.
 
 ---
 

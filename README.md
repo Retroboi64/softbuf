@@ -1,12 +1,17 @@
 # softbuf
 
-A fast, lightweight, and cross-platform software framebuffer and 2D drawing library for Rust. Designed to pair seamlessly with [`windowed`](https://github.com/Retroboi64/windowed) and standard raw window handles.
+A fast, lightweight, and cross-platform software framebuffer, 2D drawing, and frame-pacing library for Rust. Designed to pair seamlessly with [`windowed`](https://github.com/Retroboi64/windowed) (v0.4.x+) and standard raw window handles.
 
 ---
 
 ## Highlights
 
 - **Zero External Dependencies on Windows & macOS**: Direct Win32 GDI and Cocoa `CALayer`/CoreGraphics blitters.
+- **High-Precision Frame Pacing**:
+  - `FramePacer` using hybrid OS sleep and spin-wait timing to achieve sub-millisecond precision.
+  - Target framerates: 30 FPS, 60 FPS, 120 FPS, 144 FPS, uncapped, and dynamic oscillating **ranging framerates**.
+  - Delta-time calculation (`delta_secs`) for framerate-independent physics and animations.
+  - On-screen performance HUD (`draw_fps_overlay`) and real-time frame time graph (`draw_fps_graph`).
 - **Rich 2D Drawing Primitives**:
   - Aliased lines (Bresenham) & anti-aliased lines (Xiaolin Wu)
   - Thick lines with rounded end-caps
@@ -43,14 +48,14 @@ Add `softbuf` to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-softbuf = "0.2"
-windowed = { version = "0.3", features = ["raw-window-handle"] }
+softbuf = "0.3"
+windowed = { version = "0.4", features = ["raw-window-handle"] }
 ```
 
-### Basic Window + Framebuffer
+### Basic Window + Frame Pacing
 
 ```rust
-use softbuf::{Color, Framebuffer, Presenter};
+use softbuf::{Color, FramePacer, Framebuffer, Presenter};
 use windowed::{ControlFlow, Event, Key, Window, WindowConfig};
 
 fn main() -> windowed::Result<()> {
@@ -62,12 +67,7 @@ fn main() -> windowed::Result<()> {
 
     let mut presenter = Presenter::from_window(&window).expect("presenter");
     let mut fb = Framebuffer::new(800, 600);
-
-    // Draw some graphics
-    fb.clear(Color::from_rgb_hex(0x1E1E2E));
-    fb.draw_text_scaled(40, 40, "Hello from softbuf!", 2, Color::CYAN);
-    fb.fill_rounded_rect(40, 90, 200, 100, 12, Color::from_rgb_hex(0x313244));
-    fb.fill_circle(140, 140, 30, Color::RED);
+    let mut pacer = FramePacer::new(60.0); // 60 FPS target
 
     window.request_redraw();
 
@@ -76,8 +76,15 @@ fn main() -> windowed::Result<()> {
         | Event::KeyDown { key: Key::Escape, .. } => ControlFlow::Exit,
 
         Event::RedrawRequested => {
+            let stats = pacer.tick(); // paces frame and yields timing metrics
+
+            fb.clear(Color::from_rgb_hex(0x1E1E2E));
+            fb.draw_text_scaled(40, 40, "Hello from softbuf!", 2, Color::CYAN);
+            fb.draw_fps_overlay(40, 80, &stats);
+
             presenter.present(&fb).ok();
-            ControlFlow::Wait
+            window.request_redraw();
+            ControlFlow::Poll
         }
 
         Event::Resized { .. } => {
@@ -88,6 +95,34 @@ fn main() -> windowed::Result<()> {
         _ => ControlFlow::Wait,
     })
 }
+```
+
+---
+
+## Frame Pacing & Ranging Framerates
+
+```rust
+use softbuf::{FramePacer, Framerate};
+
+// 1. Target 60 FPS (standard)
+let mut pacer = FramePacer::new(60.0);
+
+// 2. High refresh rate (144 FPS)
+pacer.set_target(Framerate::Fps(144.0));
+
+// 3. Uncapped benchmarking
+pacer.set_target(Framerate::Uncapped);
+
+// 4. Dynamic ranging framerate (oscillates between 30 and 120 FPS over 4 seconds)
+pacer.set_target(Framerate::Ranging {
+    min_fps: 30.0,
+    max_fps: 120.0,
+    cycle_secs: 4.0,
+});
+
+// In render loop:
+let stats = pacer.tick();
+let dt = stats.delta_secs; // Use dt for physics simulation: position += velocity * dt
 ```
 
 ---
@@ -110,53 +145,9 @@ presenter.set_options(options);
 
 Available modes:
 - `ScaleMode::Fit`: Scales up/down maintaining aspect ratio, drawing solid border bars on margins.
-- `ScaleMode::IntegerScale`: Perfect integer multiples (1x, 2x, 3x) for pixel art games.
+- `ScaleMode::IntegerScale`: Perfect integer multiples (1×, 2×, 3×) for pixel art games.
 - `ScaleMode::Stretch`: Fills entire window.
 - `ScaleMode::Center`: 1:1 pixel rendering at window center.
-
----
-
-## 2D Drawing Primitives
-
-```rust
-// Shapes
-fb.draw_line(0, 0, 100, 100, Color::WHITE);
-fb.draw_line_thick(10, 10, 90, 90, 4, Color::YELLOW);
-fb.draw_line_aa(10.0, 50.0, 90.0, 50.0, Color::CYAN);
-
-fb.draw_rect(20, 20, 100, 60, Color::BLUE);
-fb.fill_rect(20, 20, 100, 60, Color::DARK_GRAY);
-fb.draw_rounded_rect(140, 20, 100, 60, 8, Color::GREEN);
-fb.fill_rounded_rect(140, 20, 100, 60, 8, Color::MAGENTA);
-
-fb.draw_circle(200, 200, 40, Color::WHITE);
-fb.fill_circle(200, 200, 40, Color::RED);
-fb.draw_ellipse(320, 200, 50, 30, Color::YELLOW);
-fb.fill_ellipse(320, 200, 50, 30, Color::PURPLE);
-
-fb.fill_triangle(100, 50, 150, 20, 180, 70, Color::CYAN);
-fb.draw_cubic_bezier((10, 100), (40, 20), (80, 180), (120, 100), Color::ORANGE);
-
-// Gradients
-fb.fill_rect_gradient_h(0, 0, 800, 40, Color::BLUE, Color::PURPLE);
-fb.fill_circle_gradient(400, 300, 50, Color::YELLOW, Color::RED);
-
-// Text & Bitmap Fonts
-fb.draw_text(20, 20, "Crisp 8x8 font", Color::WHITE);
-fb.draw_text_scaled(20, 40, "Scaled Text", 2, Color::CYAN);
-fb.draw_text_with_bg(20, 80, "Text with background", Color::BLACK, Color::WHITE);
-
-// Clipping Stack
-fb.push_clip_rect(Rect::new(50, 50, 200, 200));
-// Everything drawn here is clipped to [50, 50, 200, 200]
-fb.pop_clip_rect();
-
-// Image Filters
-fb.blur(); // Fast O(W x H) separable box blur
-fb.flood_fill(100, 100, Color::GREEN); // Scanline flood fill
-fb.grayscale();
-fb.invert();
-```
 
 ---
 
@@ -174,6 +165,9 @@ cargo run --example shapes
 
 # Interactive text, clipping, gradients, and scaling modes
 cargo run --example text_and_ui
+
+# Frame pacing, ranging framerates, and real-time jitter graph
+cargo run --example framerate_pacing
 ```
 
 ---

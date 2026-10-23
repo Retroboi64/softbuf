@@ -962,6 +962,71 @@ impl Framebuffer {
         self.draw_text(x, y, text, fg);
     }
 
+    /// Draws a formatted performance HUD overlay displaying instantaneous FPS,
+    /// average FPS, and frame time in milliseconds.
+    pub fn draw_fps_overlay(&mut self, x: i32, y: i32, stats: &crate::pacing::FrameStats) {
+        let label = format!(
+            "FPS: {:5.1} | AVG: {:5.1} | {:5.2} ms",
+            stats.fps, stats.avg_fps, stats.frame_time_ms
+        );
+        self.draw_text_with_bg(x, y, &label, Color::WHITE, Color::rgba(0, 0, 0, 180));
+    }
+
+    /// Draws a real-time frame time graph / histogram (in ms) to visualize pacing and micro-stutter.
+    pub fn draw_fps_graph(
+        &mut self,
+        x: i32,
+        y: i32,
+        width: u32,
+        height: u32,
+        history: &std::collections::VecDeque<f32>,
+        line_color: Color,
+        bg_color: Color,
+    ) {
+        if width < 10 || height < 10 || history.is_empty() {
+            return;
+        }
+
+        let w = width as i32;
+        let h = height as i32;
+
+        // Background box and border
+        self.fill_rect(x, y, w, h, bg_color);
+        self.draw_rect(x, y, w, h, Color::DARK_GRAY);
+
+        // Guide lines for 16.6ms (60 FPS) and 33.3ms (30 FPS)
+        let max_ms = 50.0f32;
+        let y_60fps = y + h - (16.666 / max_ms * h as f32).round() as i32;
+        let y_30fps = y + h - (33.333 / max_ms * h as f32).round() as i32;
+
+        if y_60fps > y && y_60fps < y + h {
+            self.draw_hline(x + 1, x + w - 2, y_60fps, Color::rgba(0, 255, 0, 70));
+        }
+        if y_30fps > y && y_30fps < y + h {
+            self.draw_hline(x + 1, x + w - 2, y_30fps, Color::rgba(255, 255, 0, 70));
+        }
+
+        // Plot bars for recent history
+        let count = history.len().min(width as usize - 2);
+        let start_idx = history.len() - count;
+
+        for (i, &ms) in history.iter().skip(start_idx).enumerate() {
+            let bar_x = x + 1 + i as i32;
+            let bar_h = ((ms / max_ms) * (h - 2) as f32).clamp(1.0, (h - 2) as f32).round() as i32;
+            let bar_y = y + h - 1 - bar_h;
+
+            let col = if ms > 35.0 {
+                Color::RED
+            } else if ms > 18.0 {
+                Color::YELLOW
+            } else {
+                line_color
+            };
+
+            self.draw_vline(bar_x, bar_y, y + h - 2, col);
+        }
+    }
+
     // ── Gradients ────────────────────────────────────────────────────────────
 
     /// Fills a rectangle with a horizontal linear gradient from `left` to `right`.

@@ -191,3 +191,30 @@ fn test_damage_tracking_diff_rects() {
     let bounding = diffs.iter().fold(Rect::default(), |acc, r| acc.union(r));
     assert!(bounding.contains(12, 12));
 }
+
+#[test]
+fn test_frame_pacer_and_ranging_framerate() {
+    use softbuf::{FramePacer, Framerate};
+
+    // Test fixed target FPS
+    let mut pacer = FramePacer::new(120.0);
+    assert_eq!(pacer.effective_target_fps(), Some(120.0));
+
+    // Test uncapped
+    pacer.set_target(Framerate::Uncapped);
+    assert_eq!(pacer.effective_target_fps(), None);
+
+    // Test ranging framerate calculation
+    pacer.set_target(Framerate::Ranging {
+        min_fps: 30.0,
+        max_fps: 144.0,
+        cycle_secs: 2.0,
+    });
+    let eff = pacer.effective_target_fps().unwrap();
+    assert!((30.0..=144.0).contains(&eff));
+
+    // Test tick produces valid stats
+    let stats = pacer.tick();
+    assert!(stats.delta_secs > 0.0);
+    assert!(stats.frame_count >= 1);
+}

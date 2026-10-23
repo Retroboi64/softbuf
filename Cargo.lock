@@ -67,7 +67,7 @@ dependencies = [
 
 [[package]]
 name = "softbuf"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "raw-window-handle",
  "windowed",
@@ -76,7 +76,9 @@ dependencies = [
 
 [[package]]
 name = "windowed"
-version = "0.3.1"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "de95c82faae445aa64e22c6a09af9ca70b464d1f255b50e7b5632cb835eccaca"
 dependencies = [
  "raw-window-handle",
 ]

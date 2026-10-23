@@ -8,7 +8,7 @@ authors = ["Patrick Reese (Retroboi64) <https://github.com/Retroboi64>"]
 repository = "https://github.com/Retroboi64/softbuf"
 
 [dependencies]
-windowed = { version = "0.4", optional = true, features = ["raw-window-handle"] }
+windowed = { version = "0.4.1", optional = true, features = ["raw-window-handle"] }
 raw-window-handle = { version = "0.6", optional = true }
 
 [features]

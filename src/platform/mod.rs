@@ -1,3 +1,5 @@
+//! Platform-specific window blitting backends.
+
 #[cfg(target_os = "linux")]
 mod linux;
 #[cfg(target_os = "linux")]
@@ -8,8 +10,12 @@ mod windows;
 #[cfg(target_os = "windows")]
 pub use windows::PlatformPresenter;
 
-#[cfg(not(any(target_os = "linux", target_os = "windows")))]
+#[cfg(target_os = "macos")]
+mod macos;
+#[cfg(target_os = "macos")]
+pub use macos::PlatformPresenter;
+
+#[cfg(not(any(target_os = "linux", target_os = "windows", target_os = "macos")))]
 compile_error!(
-    "softbuf only supports Linux (X11) and Windows. \
-     macOS support is not yet implemented."
+    "softbuf currently supports Linux (X11), Windows (Win32), and macOS (Cocoa)."
 );

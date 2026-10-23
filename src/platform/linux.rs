@@ -1,44 +1,45 @@
-//! Linux X11 presenter — converts the framebuffer to X11's expected
-//! pixel format and pushes it to the window with `PutImage`.
+//! Linux X11 presenter — blits the framebuffer to an X11 window with x11rb.
 
 use x11rb::connection::Connection;
 use x11rb::protocol::xproto::*;
 use x11rb::rust_connection::RustConnection;
 
-use raw_window_handle::{HasDisplayHandle, HasWindowHandle, RawWindowHandle};
-
 use crate::error::{Error, Result};
 use crate::framebuffer::Framebuffer;
+use crate::geom::Rect;
+use crate::presenter::PresentationOptions;
 
 pub struct PlatformPresenter {
     conn: RustConnection,
     window: u32,
     gc: u32,
     depth: u8,
-    /// True if the server expects BGR byte order (rare but possible).
     bgr: bool,
+    buffer: Vec<u8>,
 }
 
 impl PlatformPresenter {
-    pub fn new<W: HasWindowHandle + HasDisplayHandle>(handle: &W) -> Result<Self> {
-        // Extract X11 window id from raw handle
-        let window = match handle
+    #[cfg(feature = "raw-window-handle")]
+    pub fn new<W: raw_window_handle::HasWindowHandle + raw_window_handle::HasDisplayHandle>(
+        handle: &W,
+    ) -> Result<Self> {
+        let win = handle
             .window_handle()
-            .map_err(|_| Error::InvalidHandle)?
-            .as_raw()
-        {
-            RawWindowHandle::Xlib(h) => h.window as u32,
-            RawWindowHandle::Xcb(h) => h.window.get(),
+            .map_err(|_| Error::InvalidHandle)?;
+        let window = match win.as_raw() {
+            raw_window_handle::RawWindowHandle::Xlib(h) => h.window as u32,
+            raw_window_handle::RawWindowHandle::Xcb(h) => h.window.get(),
             _ => return Err(Error::InvalidHandle),
         };
+        Self::from_x11(window)
+    }
 
+    pub fn from_x11(window: u32) -> Result<Self> {
         let (conn, screen_num) =
             RustConnection::connect(None).map_err(|e| Error::Platform(e.to_string()))?;
 
         let screen = &conn.setup().roots[screen_num];
         let depth = screen.root_depth;
-
-        // Check byte order: X11 setup reports MSBFirst or LSBFirst
         let bgr = conn.setup().image_byte_order == ImageOrder::LSB_FIRST;
 
         let gc = conn
@@ -55,22 +56,24 @@ impl PlatformPresenter {
             gc,
             depth,
             bgr,
+            buffer: Vec::new(),
         })
     }
 
-    /// Blit the entire framebuffer to the window.
-    ///
-    /// The framebuffer size does not need to match the window — the image
-    /// will be rendered at (0,0) at its native pixel dimensions.
-    pub fn present(&self, fb: &Framebuffer) -> Result<()> {
+    pub fn present_with_options(
+        &mut self,
+        fb: &Framebuffer,
+        _options: &PresentationOptions,
+    ) -> Result<()> {
         let w = fb.width() as u16;
         let h = fb.height() as u16;
+        if w == 0 || h == 0 {
+            return Ok(());
+        }
 
-        // Convert ARGB → the format PutImage expects.
-        // ZPixmap with 32 bpp: on most modern X11 servers the expected
-        // pixel format is 0x00RRGGBB (native u32, little-endian).
-        // We need to write bytes as B G R X.
-        let mut data: Vec<u8> = Vec::with_capacity(fb.len() * 4);
+        let needed_bytes = fb.len() * 4;
+        self.buffer.clear();
+        self.buffer.reserve(needed_bytes);
 
         for &argb in fb.pixels() {
             let a = ((argb >> 24) & 0xFF) as u8;
@@ -79,17 +82,15 @@ impl PlatformPresenter {
             let b = (argb & 0xFF) as u8;
 
             if self.bgr {
-                // LSBFirst: bytes in memory order B G R A
-                data.push(b);
-                data.push(g);
-                data.push(r);
-                data.push(a);
+                self.buffer.push(b);
+                self.buffer.push(g);
+                self.buffer.push(r);
+                self.buffer.push(a);
             } else {
-                // MSBFirst: bytes in memory order A R G B
-                data.push(a);
-                data.push(r);
-                data.push(g);
-                data.push(b);
+                self.buffer.push(a);
+                self.buffer.push(r);
+                self.buffer.push(g);
+                self.buffer.push(b);
             }
         }
 
@@ -104,7 +105,7 @@ impl PlatformPresenter {
                 0, // dst_y
                 0, // left_pad
                 self.depth,
-                &data,
+                &self.buffer,
             )
             .map_err(|e| Error::Platform(e.to_string()))?;
 
@@ -112,6 +113,15 @@ impl PlatformPresenter {
             .flush()
             .map_err(|e| Error::Platform(e.to_string()))?;
         Ok(())
+    }
+
+    pub fn present_rects(
+        &mut self,
+        fb: &Framebuffer,
+        _rects: &[Rect],
+        options: &PresentationOptions,
+    ) -> Result<()> {
+        self.present_with_options(fb, options)
     }
 }
 

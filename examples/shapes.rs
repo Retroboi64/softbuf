@@ -3,18 +3,30 @@ use windowed::{ControlFlow, Event, Key, Window, WindowConfig};
 
 fn main() -> windowed::Result<()> {
     let mut window = Window::new(WindowConfig::new("softbuf — shapes").size(800, 600))?;
-    let presenter = Presenter::new(&window).expect("presenter");
+    let mut presenter = Presenter::from_window(&window).expect("presenter");
 
     let mut fb = Framebuffer::new(800, 600);
     draw_scene(&mut fb);
 
-    window.run(|event| match event {
-        Event::CloseRequested | Event::KeyDown(Key::Escape) => ControlFlow::Exit,
+    window.request_redraw();
+
+    window.run(|event, window| match event {
+        Event::CloseRequested
+        | Event::KeyDown {
+            key: Key::Escape, ..
+        } => ControlFlow::Exit,
+
         Event::RedrawRequested => {
             presenter.present(&fb).ok();
-            ControlFlow::Continue
+            ControlFlow::Wait
         }
-        _ => ControlFlow::Continue,
+
+        Event::Resized { .. } => {
+            window.request_redraw();
+            ControlFlow::Poll
+        }
+
+        _ => ControlFlow::Wait,
     })
 }
 

@@ -42,8 +42,8 @@ impl Ball {
 
 fn main() -> windowed::Result<()> {
     let mut window = Window::new(WindowConfig::new("softbuf — bouncing balls").size(W, H))?;
+    let mut presenter = Presenter::from_window(&window).expect("presenter");
 
-    let presenter = Presenter::new(&window).expect("presenter");
     let mut fb = Framebuffer::filled(W, H, Color::BLACK);
 
     let mut balls = vec![
@@ -83,8 +83,11 @@ fn main() -> windowed::Result<()> {
 
     window.request_redraw();
 
-    window.run(|event| match event {
-        Event::CloseRequested | Event::KeyDown(Key::Escape) => ControlFlow::Exit,
+    window.run(|event, window| match event {
+        Event::CloseRequested
+        | Event::KeyDown {
+            key: Key::Escape, ..
+        } => ControlFlow::Exit,
 
         Event::RedrawRequested => {
             // Fade the framebuffer toward black instead of clearing — creates trails
@@ -107,8 +110,11 @@ fn main() -> windowed::Result<()> {
                 );
             }
 
+            fb.draw_text(16, 16, "Press ESC to exit", Color::WHITE);
+
             presenter.present(&fb).ok();
-            ControlFlow::Continue
+            window.request_redraw();
+            ControlFlow::Poll
         }
 
         _ => ControlFlow::Poll,
